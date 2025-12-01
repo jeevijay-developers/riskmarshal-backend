@@ -1,0 +1,41 @@
+{
+  "name": "riskmarshal-backend",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jeevijay-developers/riskmarshal-backend.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/jeevijay-developers/riskmarshal-backend/issues"
+  },
+  "homepage": "https://github.com/jeevijay-developers/riskmarshal-backend#readme",
+  "description": "",
+  "dependencies": {
+    "axios": "^1.13.2",
+    "bcrypt": "^5.1.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb": "^7.0.0",
+    "mongoose": "^9.0.0",
+    "multer": "^1.4.5-lts.1",
+    "nodemailer": "^6.9.8",
+    "nodemon": "^3.1.11",
+    "pdf-parse": "^1.1.1",
+    "pdfkit": "^0.14.0",
+    "qrcode": "^1.5.3",
+    "twilio": "^5.0.0"
+  }
+}
