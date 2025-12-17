@@ -9,6 +9,8 @@ const fs = require("fs");
 // Import routes
 const authRoutes = require("./routes/authRoutes");
 const policyRoutes = require("./routes/policyRoutes");
+const subagentRoutes = require("./routes/subagentRoutes");
+const insurerRoutes = require("./routes/insurerRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 const remittanceRoutes = require("./routes/remittanceRoutes");
 
@@ -42,6 +44,8 @@ app.use("/storage", express.static(path.join(__dirname, "storage")));
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/policies", policyRoutes);
+app.use("/api/subagents", subagentRoutes);
+app.use("/api/insurers", insurerRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/remittances", remittanceRoutes);
 

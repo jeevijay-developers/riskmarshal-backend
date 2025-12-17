@@ -1,19 +1,21 @@
-const InsurancePolicy = require('../models/InsurancePolicy');
-const constants = require('../config/constants');
+const InsurancePolicy = require("../models/InsurancePolicy");
+const constants = require("../config/constants");
 
 // Generic payment service - can be extended for specific gateways
 // Example implementation for Razorpay
-const createPaymentLink = async (policyId, amount, description = '') => {
+const createPaymentLink = async (policyId, amount, description = "") => {
   try {
-    const policy = await InsurancePolicy.findById(policyId)
-      .populate('client');
+    const policy = await InsurancePolicy.findById(policyId).populate("client");
 
     if (!policy) {
-      throw new Error('Policy not found');
+      throw new Error("Policy not found");
     }
 
     // Generate payment ID
-    const paymentId = `PAY${Date.now()}${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
+    const paymentId = `PAY${Date.now()}${Math.random()
+      .toString(36)
+      .substr(2, 5)
+      .toUpperCase()}`;
 
     // In production, integrate with actual payment gateway
     // Example for Razorpay:
@@ -39,7 +41,7 @@ const createPaymentLink = async (policyId, amount, description = '') => {
 
     // For now, return a mock payment link
     // In production, this would be the actual payment gateway link
-    const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
+    const baseUrl = process.env.BASE_URL || "http://localhost:5000";
     const paymentLink = `${baseUrl}/api/payments/process/${paymentId}`;
 
     // Update policy with payment ID
@@ -51,7 +53,7 @@ const createPaymentLink = async (policyId, amount, description = '') => {
       paymentId,
       paymentLink,
       amount,
-      currency: 'INR'
+      currency: "INR",
     };
   } catch (error) {
     throw new Error(`Payment link creation failed: ${error.message}`);
@@ -81,36 +83,53 @@ const verifyPayment = async (paymentId, paymentData) => {
     // Find policy by payment ID
     const policy = await InsurancePolicy.findOne({ paymentId });
     if (!policy) {
-      throw new Error('Policy not found for this payment');
+      throw new Error("Policy not found for this payment");
     }
 
     // Update payment status
     policy.paymentStatus = constants.PAYMENT_STATUS.PAID;
-    policy.status = constants.POLICY_STATUS.PAYMENT_PENDING;
+    policy.status = constants.POLICY_STATUS.PAYMENT_APPROVED;
     await policy.save();
 
     return {
       success: true,
       policyId: policy._id,
-      paymentId
+      paymentId,
     };
   } catch (error) {
     throw new Error(`Payment verification failed: ${error.message}`);
   }
 };
 
+// Manual approval: dashboard user confirms external payment
+const approvePaymentManually = async (policyId, approverId) => {
+  const policy = await InsurancePolicy.findById(policyId);
+  if (!policy) {
+    throw new Error("Policy not found");
+  }
+
+  policy.paymentStatus = constants.PAYMENT_STATUS.PAID;
+  policy.status = constants.POLICY_STATUS.PAYMENT_APPROVED;
+  policy.paymentApprovedBy = approverId;
+  policy.paymentApprovedAt = new Date();
+
+  await policy.save();
+
+  return policy;
+};
+
 const getPaymentStatus = async (paymentId) => {
   try {
     const policy = await InsurancePolicy.findOne({ paymentId });
     if (!policy) {
-      throw new Error('Payment not found');
+      throw new Error("Payment not found");
     }
 
     return {
       paymentId,
       status: policy.paymentStatus,
       amount: policy.premiumDetails?.finalPremium,
-      policyId: policy._id
+      policyId: policy._id,
     };
   } catch (error) {
     throw new Error(`Payment status check failed: ${error.message}`);
@@ -120,6 +139,6 @@ const getPaymentStatus = async (paymentId) => {
 module.exports = {
   createPaymentLink,
   verifyPayment,
-  getPaymentStatus
+  getPaymentStatus,
+  approvePaymentManually,
 };
-

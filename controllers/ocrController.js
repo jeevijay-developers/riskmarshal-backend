@@ -1,6 +1,6 @@
-const { extractDataFromPDF, updateOCRData } = require('../services/ocrService');
-const InsurancePolicy = require('../models/InsurancePolicy');
-const { saveFile } = require('../utils/storageService');
+const { extractDataFromPDF, updateOCRData } = require("../services/ocrService");
+const InsurancePolicy = require("../models/InsurancePolicy");
+const { saveFile } = require("../utils/storageService");
 
 // @desc    Upload PDF and extract data
 // @route   POST /api/policies/upload
@@ -10,7 +10,7 @@ const uploadPDF = async (req, res) => {
     if (!req.file) {
       return res.status(400).json({
         success: false,
-        message: 'Please upload a PDF file'
+        message: "Please upload a PDF file",
       });
     }
 
@@ -21,15 +21,19 @@ const uploadPDF = async (req, res) => {
       client: req.body.clientId,
       subagent: req.body.subagentId,
       createdBy: req.user._id,
-      status: 'draft',
-      ocrStatus: 'pending'
+      status: "draft",
+      ocrStatus: "pending",
     });
 
     // Save PDF file
-    const pdfUrl = saveFile(req.file, 'uploads');
+    const pdfUrl = saveFile(req.file, "uploads");
 
-    // Extract data from PDF
-    const extractedData = await extractDataFromPDF(req.file.buffer, policy._id);
+    // Extract data from file (PDF or image)
+    const extractedData = await extractDataFromPDF(
+      req.file.buffer,
+      req.file.mimetype,
+      policy._id
+    );
 
     // Update policy with PDF URL
     policy.quotationPdfUrl = pdfUrl;
@@ -40,13 +44,13 @@ const uploadPDF = async (req, res) => {
       data: {
         policyId: policy._id,
         extractedData,
-        pdfUrl
-      }
+        pdfUrl,
+      },
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -60,19 +64,19 @@ const triggerOCRExtraction = async (req, res) => {
     if (!policy) {
       return res.status(404).json({
         success: false,
-        message: 'Policy not found'
+        message: "Policy not found",
       });
     }
 
     // This would require the PDF buffer - in production, retrieve from storage
     res.status(501).json({
       success: false,
-      message: 'OCR extraction requires PDF file. Please use upload endpoint.'
+      message: "OCR extraction requires PDF file. Please use upload endpoint.",
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -86,7 +90,7 @@ const getOCRData = async (req, res) => {
     if (!policy) {
       return res.status(404).json({
         success: false,
-        message: 'Policy not found'
+        message: "Policy not found",
       });
     }
 
@@ -94,13 +98,13 @@ const getOCRData = async (req, res) => {
       success: true,
       data: {
         ocrStatus: policy.ocrStatus,
-        extractedData: policy.ocrExtractedData
-      }
+        extractedData: policy.ocrExtractedData,
+      },
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -115,12 +119,12 @@ const updateOCRDataController = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: policy
+      data: policy,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -129,6 +133,5 @@ module.exports = {
   uploadPDF,
   triggerOCRExtraction,
   getOCRData,
-  updateOCRDataController
+  updateOCRDataController,
 };
-

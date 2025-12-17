@@ -3,31 +3,37 @@ const {
   updatePolicy,
   getPolicies,
   getPolicyById,
-  deletePolicy
-} = require('../services/policyService');
-const { calculateAndUpdatePolicy } = require('../services/calculationService');
-const { generateQuotation } = require('../services/quotationService');
-const { sendQuotation } = require('../services/communicationService');
-const { generatePolicy, addToDataStore } = require('../services/policyGenerationService');
-const Insurer = require('../models/Insurer');
-const PolicyType = require('../models/PolicyType');
+  deletePolicy,
+} = require("../services/policyService");
+const { calculateAndUpdatePolicy } = require("../services/calculationService");
+const { generateQuotation } = require("../services/quotationService");
+const { sendQuotation } = require("../services/communicationService");
+const {
+  generatePolicy,
+  addToDataStore,
+} = require("../services/policyGenerationService");
+const { approvePaymentManually } = require("../services/paymentService");
+const Insurer = require("../models/Insurer");
+const PolicyType = require("../models/PolicyType");
 
 // @desc    Get all policy types
 // @route   GET /api/policy-types
 // @access  Private
 const getPolicyTypes = async (req, res) => {
   try {
-    const policyTypes = await PolicyType.find({ isActive: true }).sort({ name: 1 });
+    const policyTypes = await PolicyType.find({ isActive: true }).sort({
+      name: 1,
+    });
 
     res.status(200).json({
       success: true,
       count: policyTypes.length,
-      data: policyTypes
+      data: policyTypes,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -38,18 +44,18 @@ const getPolicyTypes = async (req, res) => {
 const getInsurers = async (req, res) => {
   try {
     const insurers = await Insurer.find({ isActive: true })
-      .populate('productTypes')
+      .populate("productTypes")
       .sort({ companyName: 1 });
 
     res.status(200).json({
       success: true,
       count: insurers.length,
-      data: insurers
+      data: insurers,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -59,22 +65,24 @@ const getInsurers = async (req, res) => {
 // @access  Private
 const getInsurerPolicyTypes = async (req, res) => {
   try {
-    const insurer = await Insurer.findById(req.params.id).populate('productTypes');
+    const insurer = await Insurer.findById(req.params.id).populate(
+      "productTypes"
+    );
     if (!insurer) {
       return res.status(404).json({
         success: false,
-        message: 'Insurer not found'
+        message: "Insurer not found",
       });
     }
 
     res.status(200).json({
       success: true,
-      data: insurer.productTypes
+      data: insurer.productTypes,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -88,12 +96,12 @@ const createPolicyController = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      data: policy
+      data: policy,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -110,24 +118,24 @@ const getAllPolicies = async (req, res) => {
       subagent: req.query.subagent,
       status: req.query.status,
       paymentStatus: req.query.paymentStatus,
-      createdBy: req.user.role === 'admin' ? req.query.createdBy : req.user._id
+      createdBy: req.user.role === "admin" ? req.query.createdBy : req.user._id,
     };
 
     const options = {
       page: req.query.page,
-      limit: req.query.limit
+      limit: req.query.limit,
     };
 
     const result = await getPolicies(filters, options);
 
     res.status(200).json({
       success: true,
-      ...result
+      ...result,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -141,12 +149,12 @@ const getSinglePolicy = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: policy
+      data: policy,
     });
   } catch (error) {
     res.status(404).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -160,12 +168,12 @@ const updatePolicyController = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: policy
+      data: policy,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -179,12 +187,12 @@ const deletePolicyController = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Policy deleted successfully'
+      message: "Policy deleted successfully",
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -195,16 +203,19 @@ const deletePolicyController = async (req, res) => {
 const calculatePremium = async (req, res) => {
   try {
     const { coverageDetails } = req.body;
-    const result = await calculateAndUpdatePolicy(req.params.id, coverageDetails);
+    const result = await calculateAndUpdatePolicy(
+      req.params.id,
+      coverageDetails
+    );
 
     res.status(200).json({
       success: true,
-      data: result
+      data: result,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -220,13 +231,13 @@ const getPremiumBreakdown = async (req, res) => {
       success: true,
       data: {
         premiumDetails: policy.premiumDetails,
-        commission: policy.commission
-      }
+        commission: policy.commission,
+      },
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -240,12 +251,12 @@ const generateQuotationController = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: result
+      data: result,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -255,25 +266,30 @@ const generateQuotationController = async (req, res) => {
 // @access  Private
 const sendQuotationController = async (req, res) => {
   try {
-    const { channels, recipient } = req.body;
+    const { channels, recipient, paymentLink } = req.body;
 
     if (!channels || !Array.isArray(channels) || channels.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide at least one communication channel'
+        message: "Please provide at least one communication channel",
       });
     }
 
-    const result = await sendQuotation(req.params.id, channels, recipient);
+    const result = await sendQuotation(
+      req.params.id,
+      channels,
+      recipient,
+      paymentLink
+    );
 
     res.status(200).json({
       success: true,
-      data: result
+      data: result,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -284,18 +300,40 @@ const sendQuotationController = async (req, res) => {
 const generatePolicyController = async (req, res) => {
   try {
     const result = await generatePolicy(req.params.id);
-    
+
     // Add to data store
     await addToDataStore(req.params.id);
 
     res.status(200).json({
       success: true,
-      data: result
+      data: result,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Manually approve payment and generate final policy
+// @route   POST /api/policies/:id/approve-payment
+// @access  Private
+const approvePaymentController = async (req, res) => {
+  try {
+    const policy = await approvePaymentManually(req.params.id, req.user._id);
+
+    // Generate final policy PDF after approval
+    const result = await generatePolicy(policy._id);
+
+    res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
     });
   }
 };
@@ -313,6 +351,6 @@ module.exports = {
   getPremiumBreakdown,
   generateQuotationController,
   sendQuotationController,
-  generatePolicyController
+  generatePolicyController,
+  approvePaymentController,
 };
-

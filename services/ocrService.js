@@ -1,33 +1,54 @@
-const { parsePDF, extractPolicyData } = require('../utils/pdfParser');
-const InsurancePolicy = require('../models/InsurancePolicy');
+const { parsePDF, extractPolicyData } = require("../utils/pdfParser");
+const { extractWithGemini } = require("./aiOcrService");
+const InsurancePolicy = require("../models/InsurancePolicy");
 
-// This is a basic OCR service using PDF text extraction
-// For production, integrate with external OCR APIs like Google Vision, AWS Textract, etc.
-const extractDataFromPDF = async (buffer, policyId = null) => {
+// Hybrid OCR: Gemini Vision (if configured) else PDF text parse fallback
+const extractDataFromPDF = async (
+  buffer,
+  mimeType = "application/pdf",
+  policyId = null
+) => {
   try {
-    // Parse PDF to get text
-    const pdfData = await parsePDF(buffer);
-    
-    // Extract structured data from text
-    const extractedData = extractPolicyData(pdfData.text);
+    let rawText = null;
+    let numPages = null;
+    let extractedFields = {};
+    let ai = null;
 
-    // If policyId is provided, update the policy with OCR data
+    // Attempt AI extraction when key is present
+    if (process.env.GEMINI_API_KEY) {
+      const aiResult = await extractWithGemini(buffer, mimeType);
+      ai = aiResult;
+      if (aiResult?.parsed) {
+        extractedFields = aiResult.parsed;
+      }
+    }
+
+    // Fallback/basic text extraction for PDFs to store raw text
+    if (mimeType === "application/pdf") {
+      const pdfData = await parsePDF(buffer);
+      rawText = pdfData.text;
+      numPages = pdfData.numPages;
+      // If AI didn't parse fields, try regex fallback
+      if (!Object.keys(extractedFields || {}).length) {
+        extractedFields = extractPolicyData(pdfData.text);
+      }
+    }
+
+    const payload = {
+      rawText,
+      extractedFields,
+      numPages,
+      ai,
+    };
+
     if (policyId) {
       await InsurancePolicy.findByIdAndUpdate(policyId, {
-        ocrExtractedData: {
-          rawText: pdfData.text,
-          extractedFields: extractedData,
-          numPages: pdfData.numPages
-        },
-        ocrStatus: 'extracted'
+        ocrExtractedData: payload,
+        ocrStatus: "extracted",
       });
     }
 
-    return {
-      rawText: pdfData.text,
-      extractedFields: extractedData,
-      numPages: pdfData.numPages
-    };
+    return payload;
   } catch (error) {
     throw new Error(`OCR extraction failed: ${error.message}`);
   }
@@ -38,18 +59,18 @@ const updateOCRData = async (policyId, correctedData) => {
   try {
     const policy = await InsurancePolicy.findById(policyId);
     if (!policy) {
-      throw new Error('Policy not found');
+      throw new Error("Policy not found");
     }
 
     // Merge corrected data with existing OCR data
     const updatedOCRData = {
       ...policy.ocrExtractedData,
       correctedFields: correctedData,
-      reviewedAt: new Date()
+      reviewedAt: new Date(),
     };
 
     policy.ocrExtractedData = updatedOCRData;
-    policy.ocrStatus = 'reviewed';
+    policy.ocrStatus = "reviewed";
     await policy.save();
 
     return policy;
@@ -60,6 +81,5 @@ const updateOCRData = async (policyId, correctedData) => {
 
 module.exports = {
   extractDataFromPDF,
-  updateOCRData
+  updateOCRData,
 };
-
