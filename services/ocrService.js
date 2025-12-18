@@ -1,44 +1,29 @@
-const { parsePDF, extractPolicyData } = require("../utils/pdfParser");
 const { extractWithGemini } = require("./aiOcrService");
 const InsurancePolicy = require("../models/InsurancePolicy");
 
-// Hybrid OCR: Gemini Vision (if configured) else PDF text parse fallback
+// AI-only OCR: rely solely on Gemini; if AI fails, surface the error and do not fallback
 const extractDataFromPDF = async (
   buffer,
   mimeType = "application/pdf",
   policyId = null
 ) => {
   try {
-    let rawText = null;
-    let numPages = null;
-    let extractedFields = {};
-    let ai = null;
-
-    // Attempt AI extraction when key is present
-    if (process.env.GEMINI_API_KEY) {
-      const aiResult = await extractWithGemini(buffer, mimeType);
-      ai = aiResult;
-      if (aiResult?.parsed) {
-        extractedFields = aiResult.parsed;
-      }
+    if (!process.env.GEMINI_API_KEY) {
+      throw new Error("AI OCR is not configured (GEMINI_API_KEY missing)");
     }
 
-    // Fallback/basic text extraction for PDFs to store raw text
-    if (mimeType === "application/pdf") {
-      const pdfData = await parsePDF(buffer);
-      rawText = pdfData.text;
-      numPages = pdfData.numPages;
-      // If AI didn't parse fields, try regex fallback
-      if (!Object.keys(extractedFields || {}).length) {
-        extractedFields = extractPolicyData(pdfData.text);
-      }
+    const aiResult = await extractWithGemini(buffer, mimeType);
+    const extractedFields = aiResult?.parsed || {};
+
+    if (!Object.keys(extractedFields).length) {
+      throw new Error("AI OCR returned no fields");
     }
 
     const payload = {
-      rawText,
+      rawText: null,
       extractedFields,
-      numPages,
-      ai,
+      numPages: null,
+      ai: aiResult,
     };
 
     if (policyId) {

@@ -13,6 +13,8 @@ const subagentRoutes = require("./routes/subagentRoutes");
 const insurerRoutes = require("./routes/insurerRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 const remittanceRoutes = require("./routes/remittanceRoutes");
+const clientRoutes = require("./routes/clientRoutes");
+const reportRoutes = require("./routes/reportRoutes");
 
 // Connect to database
 connectDB();
@@ -48,6 +50,8 @@ app.use("/api/subagents", subagentRoutes);
 app.use("/api/insurers", insurerRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/remittances", remittanceRoutes);
+app.use("/api/clients", clientRoutes);
+app.use("/api/reports", reportRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {

@@ -1,7 +1,7 @@
-const axios = require("axios");
+const { GoogleGenAI } = require("@google/genai");
 
-const GEMINI_API_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent";
+const DEFAULT_MODEL = "gemini-2.5-flash"; // free-tier friendly
+const GEMINI_MODEL = process.env.GEMINI_MODEL || DEFAULT_MODEL;
 
 const buildPrompt =
   () => `Extract insurance policy data. Return ONLY a compact JSON matching this shape:
@@ -90,35 +90,48 @@ const extractWithGemini = async (buffer, mimeType) => {
     throw new Error("GEMINI_API_KEY is not configured");
   }
 
+  const client = new GoogleGenAI({ apiKey });
   const base64Data = buffer.toString("base64");
-  const payload = {
-    contents: [
-      {
-        parts: [
-          { text: buildPrompt() },
-          {
-            inline_data: {
-              mime_type: mimeType,
-              data: base64Data,
+
+  let result;
+  try {
+    result = await client.models.generateContent({
+      model: GEMINI_MODEL,
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: buildPrompt() },
+            {
+              inlineData: {
+                mimeType,
+                data: base64Data,
+              },
             },
-          },
-        ],
-      },
-    ],
-  };
+          ],
+        },
+      ],
+    });
+  } catch (err) {
+    const status = err.response?.status;
+    const statusText = err.response?.statusText;
+    const detail = err.response?.data?.error?.message || err.message;
+    throw new Error(
+      `Gemini request failed${
+        status ? ` (${status}${statusText ? ` ${statusText}` : ""})` : ""
+      }: ${detail}`
+    );
+  }
 
-  const url = `${GEMINI_API_URL}?key=${apiKey}`;
-  const response = await axios.post(url, payload, {
-    headers: { "Content-Type": "application/json" },
-    timeout: 30000,
-  });
-
-  const candidate = response.data?.candidates?.[0];
-  const text = candidate?.content?.parts?.map((p) => p.text || "").join(" ");
+  const text =
+    result?.text ||
+    result?.response?.candidates?.[0]?.content?.parts
+      ?.map((p) => p.text || "")
+      .join(" ");
   const parsed = parseJsonFromModel(text);
 
   return {
-    model: "gemini-1.5-pro",
+    model: GEMINI_MODEL,
     raw: text,
     parsed,
   };

@@ -1,5 +1,7 @@
 const { extractDataFromPDF, updateOCRData } = require("../services/ocrService");
 const InsurancePolicy = require("../models/InsurancePolicy");
+const Client = require("../models/Client");
+const Subagent = require("../models/Subagent");
 const { saveFile } = require("../utils/storageService");
 
 // @desc    Upload PDF and extract data
@@ -27,6 +29,20 @@ const uploadPDF = async (req, res) => {
 
     // Save PDF file
     const pdfUrl = saveFile(req.file, "uploads");
+
+    // Link policy to client
+    if (policy.client) {
+      await Client.findByIdAndUpdate(policy.client, {
+        $addToSet: { policies: policy._id },
+      });
+    }
+
+    // Link policy to subagent
+    if (policy.subagent) {
+      await Subagent.findByIdAndUpdate(policy.subagent, {
+        $addToSet: { policies: policy._id },
+      });
+    }
 
     // Extract data from file (PDF or image)
     const extractedData = await extractDataFromPDF(
