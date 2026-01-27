@@ -15,6 +15,7 @@ const {
   sendQuotationController,
   generatePolicyController,
   approvePaymentController,
+  sendPolicyWhatsAppController,
 } = require("../controllers/policyController");
 const {
   uploadPDF,
@@ -57,6 +58,9 @@ router.post("/:id/send-quotation", sendQuotationController);
 
 // Policy generation routes
 router.post("/:id/generate-policy", generatePolicyController);
+
+// WhatsApp notification routes
+router.post("/:id/send-whatsapp", sendPolicyWhatsAppController);
 
 // Payment routes (moved here to keep policy-related routes together)
 const {

@@ -13,8 +13,10 @@ const {
   addToDataStore,
 } = require("../services/policyGenerationService");
 const { approvePaymentManually } = require("../services/paymentService");
+const { sendTemplateMessage } = require("../utils/whatsappService");
 const Insurer = require("../models/Insurer");
 const PolicyType = require("../models/PolicyType");
+const Client = require("../models/Client");
 
 // @desc    Get all policy types
 // @route   GET /api/policy-types
@@ -338,6 +340,94 @@ const approvePaymentController = async (req, res) => {
   }
 };
 
+// @desc    Send policy creation WhatsApp message
+// @route   POST /api/policies/:id/send-whatsapp
+// @access  Private
+const sendPolicyWhatsAppController = async (req, res) => {
+  try {
+    const policy = await getPolicyById(req.params.id);
+
+    if (!policy) {
+      return res.status(404).json({
+        success: false,
+        message: "Policy not found",
+      });
+    }
+
+    // Get client details
+    const client = await Client.findById(policy.client);
+    if (!client) {
+      return res.status(404).json({
+        success: false,
+        message: "Client not found",
+      });
+    }
+
+    const phoneNumber = client.contactNumber || client.phone;
+    if (!phoneNumber) {
+      return res.status(400).json({
+        success: false,
+        message: "Client phone number not available",
+      });
+    }
+
+    // Get insurer and policy type names
+    const insurer = await Insurer.findById(policy.insurer);
+    const policyType = await PolicyType.findById(policy.policyType);
+
+    // Format policy details for WhatsApp message
+    const policyNumber = policy.policyDetails?.policyNumber || policy._id.toString().slice(-8).toUpperCase();
+    const insurerName = insurer?.companyName || "Insurance Company";
+    const policyTypeName = policyType?.name || "Insurance Policy";
+    const premium = policy.premiumDetails?.finalPremium 
+      ? `₹${policy.premiumDetails.finalPremium.toLocaleString("en-IN")}`
+      : "N/A";
+    const periodFrom = policy.policyDetails?.periodFrom 
+      ? new Date(policy.policyDetails.periodFrom).toLocaleDateString("en-IN")
+      : "N/A";
+    const periodTo = policy.policyDetails?.periodTo 
+      ? new Date(policy.policyDetails.periodTo).toLocaleDateString("en-IN")
+      : "N/A";
+
+    // Build template components for policy creation message
+    const components = [
+      {
+        type: "body",
+        parameters: [
+          { type: "text", text: client.name || "Valued Customer" },
+          { type: "text", text: policyTypeName },
+          { type: "text", text: policyNumber },
+          { type: "text", text: insurerName },
+          { type: "text", text: premium },
+          { type: "text", text: `${periodFrom} to ${periodTo}` },
+        ],
+      },
+    ];
+
+    // Use policy creation template (fallback to hello_world if not configured)
+    const templateName = process.env.WHATSAPP_POLICY_TEMPLATE || "hello_world";
+
+    const result = await sendTemplateMessage(
+      phoneNumber,
+      templateName,
+      "en_US",
+      components
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "WhatsApp message sent successfully",
+      data: result,
+    });
+  } catch (error) {
+    console.error("WhatsApp send error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to send WhatsApp message",
+    });
+  }
+};
+
 module.exports = {
   getPolicyTypes,
   getInsurers,
@@ -353,4 +443,5 @@ module.exports = {
   sendQuotationController,
   generatePolicyController,
   approvePaymentController,
+  sendPolicyWhatsAppController,
 };
