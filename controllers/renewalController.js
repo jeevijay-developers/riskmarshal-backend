@@ -9,6 +9,11 @@ const {
   processRenewal,
   getRenewalStats,
 } = require("../services/renewalService");
+const {
+  getSchedulerStatus,
+  runDailyRenewalCheck,
+  updateSchedulerConfig,
+} = require("../services/schedulerService");
 
 // @desc    Get all renewals with categorization
 // @route   GET /api/renewals
@@ -231,6 +236,63 @@ const getOverduePoliciesController = async (req, res) => {
   }
 };
 
+// @desc    Get scheduler status
+// @route   GET /api/renewals/scheduler/status
+// @access  Private (Admin)
+const getSchedulerStatusController = async (req, res) => {
+  try {
+    const status = getSchedulerStatus();
+    res.status(200).json({
+      success: true,
+      data: status,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Manually trigger renewal check
+// @route   POST /api/renewals/scheduler/trigger
+// @access  Private (Admin)
+const triggerRenewalCheckController = async (req, res) => {
+  try {
+    const results = await runDailyRenewalCheck();
+    res.status(200).json({
+      success: true,
+      message: "Renewal check completed",
+      data: results,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Configure scheduler settings
+// @route   POST /api/renewals/scheduler/configure
+// @access  Private (Admin)
+const configureSchedulerController = async (req, res) => {
+  try {
+    const { enabled, runHour, runMinute } = req.body;
+    const newConfig = updateSchedulerConfig({ enabled, runHour, runMinute });
+    res.status(200).json({
+      success: true,
+      message: "Scheduler configuration updated",
+      data: newConfig,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   getAllRenewalsController,
   getRenewalByIdController,
@@ -241,4 +303,7 @@ module.exports = {
   getRenewalStatsController,
   getPoliciesDueController,
   getOverduePoliciesController,
+  getSchedulerStatusController,
+  triggerRenewalCheckController,
+  configureSchedulerController,
 };

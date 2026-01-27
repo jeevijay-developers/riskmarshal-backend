@@ -343,7 +343,7 @@ exports.deleteReport = async (req, res) => {
   }
 };
 
-// Download report (placeholder - would generate actual file)
+// Download report (generates and streams actual PDF file)
 exports.downloadReport = async (req, res) => {
   try {
     const report = await Report.findOne({
@@ -358,21 +358,39 @@ exports.downloadReport = async (req, res) => {
       });
     }
 
-    // In production, this would generate and stream the actual file
-    // For now, return the report data as JSON
-    res.json({
-      success: true,
-      data: report.data,
-      format: report.format,
-      filename: `${report.title.replace(/\s+/g, "_")}_${Date.now()}.${
-        report.format
-      }`,
-    });
+    // Check if format is PDF
+    if (report.format !== "pdf") {
+      // For non-PDF formats, return JSON data
+      return res.json({
+        success: true,
+        data: report.data,
+        format: report.format,
+        filename: `${report.title.replace(/\s+/g, "_")}_${Date.now()}.${report.format}`,
+      });
+    }
+
+    // Generate PDF
+    const { generateReportPDF } = require("../utils/reportPdfGenerator");
+    const { buffer, url, filename, size } = await generateReportPDF(report);
+
+    // Update report with file info
+    report.fileUrl = url;
+    report.fileSize = `${(size / 1024).toFixed(1)} KB`;
+    await report.save();
+
+    // Set response headers for PDF download
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Length", buffer.length);
+
+    // Send the PDF buffer
+    res.send(buffer);
   } catch (error) {
     console.error("Error downloading report:", error);
     res.status(500).json({
       success: false,
       message: "Failed to download report",
+      error: error.message,
     });
   }
 };

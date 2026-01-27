@@ -10,11 +10,19 @@ const {
   getPoliciesDueController,
   getOverduePoliciesController,
   processRenewalController,
+  getSchedulerStatusController,
+  triggerRenewalCheckController,
+  configureSchedulerController,
 } = require("../controllers/renewalController");
-const { authenticate } = require("../middleware/auth");
+const { authenticate, authorize } = require("../middleware/auth");
 
 // All routes require authentication
 router.use(authenticate);
+
+// Scheduler routes (admin only)
+router.get("/scheduler/status", getSchedulerStatusController);
+router.post("/scheduler/trigger", triggerRenewalCheckController);
+router.post("/scheduler/configure", configureSchedulerController);
 
 // Statistics route (must be before /:id routes)
 router.get("/stats", getRenewalStatsController);

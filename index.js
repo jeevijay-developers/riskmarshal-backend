@@ -17,6 +17,9 @@ const clientRoutes = require("./routes/clientRoutes");
 const reportRoutes = require("./routes/reportRoutes");
 const renewalRoutes = require("./routes/renewalRoutes");
 
+// Import scheduler
+const { startScheduler } = require("./services/schedulerService");
+
 // Connect to database
 connectDB();
 
@@ -74,6 +77,9 @@ const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  
+  // Start renewal scheduler
+  startScheduler();
 });
 
 module.exports = app;
