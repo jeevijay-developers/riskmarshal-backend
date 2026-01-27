@@ -160,6 +160,25 @@ const InsurancePolicySchema = new mongoose.Schema(
     policyPdfUrl: {
       type: String,
     },
+    renewalTracking: {
+      status: {
+        type: String,
+        enum: ["not_contacted", "contacted", "pending", "overdue", "renewed"],
+        default: "not_contacted",
+      },
+      notes: { type: String },
+      lastContacted: { type: Date },
+      lastUpdated: { type: Date },
+      contactHistory: [
+        {
+          date: { type: Date },
+          channels: [{ type: String }],
+          subject: { type: String },
+          message: { type: String },
+          results: { type: mongoose.Schema.Types.Mixed },
+        },
+      ],
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

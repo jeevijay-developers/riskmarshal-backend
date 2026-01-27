@@ -42,12 +42,23 @@ const ClientSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Generate customerId before saving
+// Generate customerId before saving; uses max existing value to avoid duplicates after deletions
 ClientSchema.pre("save", async function () {
-  if (!this.customerId) {
-    const count = await mongoose.model("Client").countDocuments();
-    this.customerId = `CUST${String(count + 1).padStart(6, "0")}`;
+  if (this.customerId) return;
+
+  const lastClient = await mongoose
+    .model("Client")
+    .findOne({}, { customerId: 1 })
+    .sort({ customerId: -1 })
+    .lean();
+
+  let nextNumber = 1;
+  if (lastClient?.customerId) {
+    const parsed = parseInt(lastClient.customerId.replace(/\D/g, ""), 10);
+    if (!Number.isNaN(parsed)) nextNumber = parsed + 1;
   }
+
+  this.customerId = `CUST${String(nextNumber).padStart(6, "0")}`;
 });
 
 module.exports = mongoose.model("Client", ClientSchema);

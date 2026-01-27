@@ -156,10 +156,10 @@ const scrubPolicyDetails = (details = {}) => {
 
 const updatePolicy = async (policyId, updateData) => {
   try {
-    console.log("[policyService.updatePolicy] incoming", {
-      policyId,
-      updateData,
-    });
+    // console.log("[policyService.updatePolicy] incoming", {
+    //   policyId,
+    //   updateData,
+    // });
 
     const policy = await InsurancePolicy.findById(policyId);
     if (!policy) {
