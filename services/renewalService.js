@@ -18,18 +18,29 @@ const getPoliciesDueForRenewal = async (daysAhead = 30) => {
     futureDate.setDate(futureDate.getDate() + daysAhead);
     futureDate.setHours(23, 59, 59, 999);
 
+    // Query both insuranceEndDate and periodTo for backward compatibility
     const policies = await InsurancePolicy.find({
-      "policyDetails.insuranceEndDate": {
-        $gte: today,
-        $lte: futureDate,
-      },
+      $or: [
+        {
+          "policyDetails.insuranceEndDate": {
+            $gte: today,
+            $lte: futureDate,
+          },
+        },
+        {
+          "policyDetails.periodTo": {
+            $gte: today,
+            $lte: futureDate,
+          },
+        },
+      ],
       status: { $in: ["active", "payment_approved"] },
     })
       .populate("client")
       .populate("insurer")
       .populate("policyType")
       .populate("subagent")
-      .sort({ "policyDetails.insuranceEndDate": 1 });
+      .sort({ "policyDetails.insuranceEndDate": 1, "policyDetails.periodTo": 1 });
 
     return policies.map((policy) => formatRenewalData(policy));
   } catch (error) {
@@ -49,18 +60,29 @@ const getOverduePolicies = async () => {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
+    // Query both insuranceEndDate and periodTo for backward compatibility
     const policies = await InsurancePolicy.find({
-      "policyDetails.insuranceEndDate": {
-        $gte: thirtyDaysAgo,
-        $lt: today,
-      },
+      $or: [
+        {
+          "policyDetails.insuranceEndDate": {
+            $gte: thirtyDaysAgo,
+            $lt: today,
+          },
+        },
+        {
+          "policyDetails.periodTo": {
+            $gte: thirtyDaysAgo,
+            $lt: today,
+          },
+        },
+      ],
       status: { $in: ["active", "payment_approved", "expired"] },
     })
       .populate("client")
       .populate("insurer")
       .populate("policyType")
       .populate("subagent")
-      .sort({ "policyDetails.insuranceEndDate": 1 });
+      .sort({ "policyDetails.insuranceEndDate": 1, "policyDetails.periodTo": 1 });
 
     return policies.map((policy) => formatRenewalData(policy));
   } catch (error) {
@@ -83,18 +105,29 @@ const getAllRenewals = async () => {
     const ninetyDaysAhead = new Date();
     ninetyDaysAhead.setDate(ninetyDaysAhead.getDate() + 90);
 
+    // Query both insuranceEndDate and periodTo for backward compatibility
     const policies = await InsurancePolicy.find({
-      "policyDetails.insuranceEndDate": {
-        $gte: thirtyDaysAgo,
-        $lte: ninetyDaysAhead,
-      },
+      $or: [
+        {
+          "policyDetails.insuranceEndDate": {
+            $gte: thirtyDaysAgo,
+            $lte: ninetyDaysAhead,
+          },
+        },
+        {
+          "policyDetails.periodTo": {
+            $gte: thirtyDaysAgo,
+            $lte: ninetyDaysAhead,
+          },
+        },
+      ],
       status: { $in: ["active", "payment_approved", "expired"] },
     })
       .populate("client")
       .populate("insurer")
       .populate("policyType")
       .populate("subagent")
-      .sort({ "policyDetails.insuranceEndDate": 1 });
+      .sort({ "policyDetails.insuranceEndDate": 1, "policyDetails.periodTo": 1 });
 
     const renewals = policies.map((policy) => formatRenewalData(policy));
 
@@ -575,8 +608,11 @@ const getRenewalStats = async () => {
  */
 const formatRenewalData = (policy) => {
   const today = new Date();
+  // Use insuranceEndDate if available, fallback to periodTo
   const expiryDate = policy.policyDetails?.insuranceEndDate
     ? new Date(policy.policyDetails.insuranceEndDate)
+    : policy.policyDetails?.periodTo
+    ? new Date(policy.policyDetails.periodTo)
     : null;
 
   const daysUntilExpiry = expiryDate
@@ -610,7 +646,7 @@ const formatRenewalData = (policy) => {
           policy.premiumDetails.finalPremium * 1.05
         ).toLocaleString("en-IN")}`
       : "N/A", // Default 5% increase estimate
-    expiryDate: policy.policyDetails?.insuranceEndDate || null,
+    expiryDate: expiryDate || null,
     daysUntilExpiry,
     status,
     renewalStatus: policy.renewalTracking?.status || "not_contacted",

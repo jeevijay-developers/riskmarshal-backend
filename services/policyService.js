@@ -217,6 +217,14 @@ const updatePolicy = async (policyId, updateData) => {
     // Remove undefined or invalid nested subdocs to avoid cast errors
     if (policy.policyDetails) {
       policy.policyDetails = scrubPolicyDetails(policy.policyDetails);
+      
+      // Sync periodFrom/periodTo to insuranceStartDate/insuranceEndDate for renewal queries
+      if (policy.policyDetails.periodFrom && !policy.policyDetails.insuranceStartDate) {
+        policy.policyDetails.insuranceStartDate = policy.policyDetails.periodFrom;
+      }
+      if (policy.policyDetails.periodTo && !policy.policyDetails.insuranceEndDate) {
+        policy.policyDetails.insuranceEndDate = policy.policyDetails.periodTo;
+      }
     }
 
     await policy.save();
