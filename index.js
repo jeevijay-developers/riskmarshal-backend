@@ -7,7 +7,7 @@ const path = require("path");
 const fs = require("fs");
 
 // Import routes
-const authRoutes = require("./routes/authRoutes");
+const authRoutes = require("./routes/authRoutes" );
 const policyRoutes = require("./routes/policyRoutes");
 const subagentRoutes = require("./routes/subagentRoutes");
 const insurerRoutes = require("./routes/insurerRoutes");
