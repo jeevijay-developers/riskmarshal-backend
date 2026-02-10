@@ -316,9 +316,18 @@ const deletePolicy = async (policyId) => {
       throw new Error("Policy not found");
     }
 
-    // Only allow deletion of draft policies
-    if (policy.status !== "draft") {
-      throw new Error("Only draft policies can be deleted");
+    // Remove policy reference from client
+    if (policy.client) {
+      await Client.findByIdAndUpdate(policy.client, {
+        $pull: { policies: policy._id },
+      });
+    }
+
+    // Remove policy reference from subagent
+    if (policy.subagent) {
+      await Subagent.findByIdAndUpdate(policy.subagent, {
+        $pull: { policies: policy._id },
+      });
     }
 
     await InsurancePolicy.findByIdAndDelete(policyId);
