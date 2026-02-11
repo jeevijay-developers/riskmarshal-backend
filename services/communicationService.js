@@ -13,7 +13,8 @@ const sendQuotation = async (
   try {
     const policy = await InsurancePolicy.findById(policyId)
       .populate("client")
-      .populate("insurer");
+      .populate("insurer")
+      .populate("policyType");
 
     if (!policy) {
       throw new Error("Policy not found");

@@ -11,6 +11,8 @@ const formatCurrency = (value) => {
 
 const generateQuotationPDF = async (policy) => {
   return new Promise(async (resolve, reject) => {
+    const fs = require("fs");
+    const path = require("path");
     try {
       const doc = new PDFDocument({ margin: 50 });
       const chunks = [];
@@ -19,6 +21,14 @@ const generateQuotationPDF = async (policy) => {
       doc.on("end", async () => {
         try {
           const buffer = Buffer.concat(chunks);
+          const resolveLocalPath = (relativePath) => {
+            if (!relativePath) return null;
+            if (/^https?:\/\//i.test(relativePath)) return null; // pdfkit won't fetch URLs
+            const cleaned = relativePath.replace(/^\/?/, "");
+            const fs = require("fs");
+            const path = require("path");
+            return path.join(__dirname, "..", cleaned);
+          };
           const filename = `quotation-${
             policy.quotationId || policy._id
           }-${Date.now()}.pdf`;
@@ -76,7 +86,7 @@ const generateQuotationPDF = async (policy) => {
         // Own Damage block
         doc.text("Own Damage");
         doc.text(
-          `  Basic Own Damage: ${formatCurrency(pd.ownDamage?.basicOD)}`
+          `  Basic Own Damage: ${formatCurrency(pd.ownDamage?.basicOD)}`,
         );
         if (pd.ncb) {
           const discount =
@@ -89,19 +99,19 @@ const generateQuotationPDF = async (policy) => {
         if (pd.ownDamage?.addOnZeroDep)
           doc.text(
             `  Add-on: Zero Depreciation: ${formatCurrency(
-              pd.ownDamage.addOnZeroDep
-            )}`
+              pd.ownDamage.addOnZeroDep,
+            )}`,
           );
         if (pd.ownDamage?.addOnConsumables)
           doc.text(
             `  Add-on: Consumables: ${formatCurrency(
-              pd.ownDamage.addOnConsumables
-            )}`
+              pd.ownDamage.addOnConsumables,
+            )}`,
           );
         if (pd.ownDamage?.others)
           doc.text(`  Add-on: Others: ${formatCurrency(pd.ownDamage.others)}`);
         doc.text(
-          `  Total Own Damage Premium: ${formatCurrency(pd.ownDamage?.total)}`
+          `  Total Own Damage Premium: ${formatCurrency(pd.ownDamage?.total)}`,
         );
         doc.moveDown(0.5);
 
@@ -109,31 +119,31 @@ const generateQuotationPDF = async (policy) => {
         doc.text("Third Party / Liability");
         doc.text(
           `  Basic Third Party Liability: ${formatCurrency(
-            pd.liability?.basicTP
-          )}`
+            pd.liability?.basicTP,
+          )}`,
         );
         if (pd.liability?.paCoverOwnerDriver)
           doc.text(
             `  PA to Owner Driver: ${formatCurrency(
-              pd.liability.paCoverOwnerDriver
-            )}`
+              pd.liability.paCoverOwnerDriver,
+            )}`,
           );
         if (pd.liability?.llForPaidDriver)
           doc.text(
             `  LL to Paid Driver: ${formatCurrency(
-              pd.liability.llForPaidDriver
-            )}`
+              pd.liability.llForPaidDriver,
+            )}`,
           );
         if (pd.liability?.llEmployees)
           doc.text(
-            `  LL for Employees: ${formatCurrency(pd.liability.llEmployees)}`
+            `  LL for Employees: ${formatCurrency(pd.liability.llEmployees)}`,
           );
         if (pd.liability?.otherLiability)
           doc.text(
-            `  Other Liability: ${formatCurrency(pd.liability.otherLiability)}`
+            `  Other Liability: ${formatCurrency(pd.liability.otherLiability)}`,
           );
         doc.text(
-          `  Total Liability Premium: ${formatCurrency(pd.liability?.total)}`
+          `  Total Liability Premium: ${formatCurrency(pd.liability?.total)}`,
         );
         doc.moveDown(0.5);
 
@@ -141,7 +151,7 @@ const generateQuotationPDF = async (policy) => {
           bd.packagePremium ||
           (pd.ownDamage?.total || 0) + (pd.liability?.total || 0);
         doc.text(
-          `Package Premium (OD + TP): ${formatCurrency(packagePremium)}`
+          `Package Premium (OD + TP): ${formatCurrency(packagePremium)}`,
         );
 
         const gstRate = bd.gstRate || 18;
@@ -150,8 +160,8 @@ const generateQuotationPDF = async (policy) => {
           const sgst = bd.gstSplit?.sgst ?? pd.gst / 2;
           doc.text(
             `GST ${gstRate}%: ${formatCurrency(pd.gst)} (CGST ${formatCurrency(
-              cgst
-            )} + SGST ${formatCurrency(sgst)})`
+              cgst,
+            )} + SGST ${formatCurrency(sgst)})`,
           );
         }
 
@@ -169,14 +179,14 @@ const generateQuotationPDF = async (policy) => {
           if (pd.compulsoryDeductible)
             doc.text(
               `  Compulsory Deductible: ${formatCurrency(
-                pd.compulsoryDeductible
-              )}`
+                pd.compulsoryDeductible,
+              )}`,
             );
           if (pd.voluntaryDeductible)
             doc.text(
               `  Voluntary Deductible: ${formatCurrency(
-                pd.voluntaryDeductible
-              )}`
+                pd.voluntaryDeductible,
+              )}`,
             );
         }
 
@@ -189,7 +199,7 @@ const generateQuotationPDF = async (policy) => {
       doc.text(
         policy.paymentLink
           ? `Payment Link: ${policy.paymentLink}`
-          : "Payment Link: (pending)"
+          : "Payment Link: (pending)",
       );
       doc.moveDown();
 
@@ -202,21 +212,29 @@ const generateQuotationPDF = async (policy) => {
       }
 
       // QR Code (if available)
-      if (policy.qrCodeLink) {
+      const qrPath = resolveLocalPath(policy.qrCodeLink);
+      if (qrPath && fs.existsSync(qrPath)) {
         doc.addPage();
         doc
           .fontSize(12)
           .text("Scan QR Code for Policy Details", { align: "center" });
         doc.moveDown();
-        // Note: QR code image would need to be embedded here
+
+        const qrSize = 180;
+        const x = (doc.page.width - qrSize) / 2;
+        doc.image(qrPath, x, doc.y, { width: qrSize, height: qrSize });
+        doc.moveDown(2);
+        doc
+          .fontSize(10)
+          .text(`Quotation ID: ${policy.quotationId || policy._id}`, {
+            align: "center",
+          });
       }
 
       // Footer
-      doc
-        .fontSize(8)
-        .text(`Generated on: ${new Date().toLocaleString()}`, {
-          align: "center",
-        });
+      doc.fontSize(8).text(`Generated on: ${new Date().toLocaleString()}`, {
+        align: "center",
+      });
 
       doc.end();
     } catch (error) {
@@ -288,14 +306,14 @@ const generatePolicyPDF = async (policy) => {
         doc.fontSize(10);
         doc.text(
           `Start Date: ${new Date(
-            policy.policyDetails.insuranceStartDate
-          ).toLocaleDateString()}`
+            policy.policyDetails.insuranceStartDate,
+          ).toLocaleDateString()}`,
         );
         if (policy.policyDetails.insuranceEndDate) {
           doc.text(
             `End Date: ${new Date(
-              policy.policyDetails.insuranceEndDate
-            ).toLocaleDateString()}`
+              policy.policyDetails.insuranceEndDate,
+            ).toLocaleDateString()}`,
           );
         }
         doc.moveDown();
@@ -311,8 +329,8 @@ const generatePolicyPDF = async (policy) => {
         doc.text(
           `Package Premium (OD + TP): ${formatCurrency(
             bd.packagePremium ||
-              (pd.ownDamage?.total || 0) + (pd.liability?.total || 0)
-          )}`
+              (pd.ownDamage?.total || 0) + (pd.liability?.total || 0),
+          )}`,
         );
         doc.text(`GST: ${formatCurrency(pd.gst)}`);
         if (pd.finalPremium !== undefined) {
@@ -328,7 +346,7 @@ const generatePolicyPDF = async (policy) => {
           doc.fontSize(10).text("Deductibles");
           if (pd.compulsoryDeductible)
             doc.text(
-              `  Compulsory: ${formatCurrency(pd.compulsoryDeductible)}`
+              `  Compulsory: ${formatCurrency(pd.compulsoryDeductible)}`,
             );
           if (pd.voluntaryDeductible)
             doc.text(`  Voluntary: ${formatCurrency(pd.voluntaryDeductible)}`);
@@ -344,12 +362,37 @@ const generatePolicyPDF = async (policy) => {
         doc.moveDown();
       }
 
+      // QR Code (if available)
+      const qrPath = resolveLocalPath(policy.qrCodeLink);
+      if (qrPath && fs.existsSync(qrPath)) {
+        doc.addPage();
+        doc
+          .fontSize(12)
+          .text("Scan QR Code for Policy Details", { align: "center" });
+        doc.moveDown();
+
+        const qrSize = 180;
+        const x = (doc.page.width - qrSize) / 2;
+        doc.image(qrPath, x, doc.y, { width: qrSize, height: qrSize });
+        doc.moveDown(2);
+        doc
+          .fontSize(10)
+          .text(
+            `Policy/Quotation ID: ${
+              policy.policyDetails.policyNumber ||
+              policy.quotationId ||
+              policy._id
+            }`,
+            {
+              align: "center",
+            },
+          );
+      }
+
       // Footer
-      doc
-        .fontSize(8)
-        .text(`Generated on: ${new Date().toLocaleString()}`, {
-          align: "center",
-        });
+      doc.fontSize(8).text(`Generated on: ${new Date().toLocaleString()}`, {
+        align: "center",
+      });
 
       doc.end();
     } catch (error) {
