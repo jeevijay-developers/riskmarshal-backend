@@ -16,6 +16,7 @@ const remittanceRoutes = require("./routes/remittanceRoutes");
 const clientRoutes = require("./routes/clientRoutes");
 const reportRoutes = require("./routes/reportRoutes");
 const renewalRoutes = require("./routes/renewalRoutes");
+const leadRoutes = require("./routes/leadRoutes");
 
 // Import scheduler
 const { startScheduler } = require("./services/schedulerService");
@@ -57,6 +58,7 @@ app.use("/api/remittances", remittanceRoutes);
 app.use("/api/clients", clientRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/renewals", renewalRoutes);
+app.use("/api/leads", leadRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {
