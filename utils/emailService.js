@@ -1,39 +1,47 @@
-const nodemailer = require("nodemailer");
+const { Resend } = require('resend');
 const fs = require("fs");
 const path = require("path");
 
-// Configure email transporter
-const createTransporter = () => {
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST || "smtp.gmail.com",
-    port: process.env.SMTP_PORT || 587,
-    secure: false,
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  });
-};
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const sendEmail = async (to, subject, text, html = null, attachments = []) => {
   try {
-    const transporter = createTransporter();
+    // If no API key configured, return dummy success in dev
+    if (!process.env.RESEND_API_KEY) {
+       console.log("Resend API key missing. Skipping email send.");
+       return { success: true, messageId: "dummy" };
+    }
 
     const mailOptions = {
-      from: process.env.SMTP_FROM || process.env.SMTP_USER,
-      to,
+      from: process.env.SMTP_FROM || "Risk Marshal <onboarding@resend.dev>",
+      to: typeof to === 'string' ? [to] : to,
       subject,
       text,
       html: html || text,
-      attachments,
     };
 
-    const info = await transporter.sendMail(mailOptions);
+    if (attachments && attachments.length > 0) {
+      mailOptions.attachments = attachments.map(att => {
+        return {
+          filename: att.filename,
+          content: fs.readFileSync(att.path)
+        };
+      });
+    }
+
+    const data = await resend.emails.send(mailOptions);
+    
+    // In new Resend SDK, if error it's attached to data.error
+    if (data.error) {
+       throw new Error(data.error.message);
+    }
+
     return {
       success: true,
-      messageId: info.messageId,
+      messageId: data.data?.id || 'unknown',
     };
   } catch (error) {
+    console.error("Email error details:", error);
     throw new Error(`Email sending failed: ${error.message}`);
   }
 };

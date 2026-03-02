@@ -7,6 +7,7 @@ const {
   createLead,
   updateLead,
   deleteLead,
+  convertLead,
 } = require("../controllers/leadController");
 
 // All routes are protected
@@ -26,5 +27,8 @@ router.put("/:id", updateLead);
 
 // Delete lead
 router.delete("/:id", deleteLead);
+
+// Convert lead
+router.post("/:id/convert", convertLead);
 
 module.exports = router;

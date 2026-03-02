@@ -14,6 +14,14 @@ const ClientSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    dateOfBirth: {
+      type: Date,
+    },
+    convertedFromLead: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Lead",
+      default: null,
+    },
     email: {
       type: String,
       trim: true,

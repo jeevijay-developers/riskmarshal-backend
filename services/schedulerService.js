@@ -267,6 +267,63 @@ Risk Marshal Team
 };
 
 /**
+ * Run the 8-hourly pending payment check
+ */
+const runPaymentAlertCheck = async () => {
+  console.log(`\n${"=".repeat(50)}`);
+  console.log(`Payment Alert Scheduler - Starting at ${new Date().toISOString()}`);
+  console.log(`${"=".repeat(50)}`);
+
+  try {
+    const policies = await InsurancePolicy.find({
+      paymentStatus: "pending",
+      status: { $in: ["quotation_sent", "payment_pending"] }
+    })
+      .populate("client")
+      .populate("createdBy");
+
+    console.log(`Found ${policies.length} policies with pending payments.`);
+
+    let sentCount = 0;
+    for (const policy of policies) {
+      const intermediary = policy.createdBy;
+      if (!intermediary || !intermediary.email) continue;
+
+      const quotationDate = policy.createdAt || new Date();
+      const daysSince = Math.floor((new Date() - quotationDate) / (1000 * 60 * 60 * 24));
+
+      const subject = `Pending Payment Alert - ${policy.client?.name || "Client"}`;
+      const textMessage = `
+Dear ${intermediary.firstName || "Agent"},
+
+You have a pending quotation payment for your client ${policy.client?.name || "Customer"}.
+
+Quotation ID: ${policy.quotationId || policy.policyDetails?.policyNumber || "N/A"}
+Amount Pending: ₹${policy.premiumDetails?.finalPremium?.toLocaleString("en-IN") || "N/A"}
+Days since quotation: ${daysSince} days
+
+Please follow up with the client to complete the payment.
+
+Risk Marshal System
+      `.trim();
+
+      try {
+        await sendEmail(intermediary.email, subject, textMessage);
+        sentCount++;
+        // Delay to avoid limit hit
+        await new Promise(res => setTimeout(res, 500));
+      } catch (e) {
+        console.error(`Failed to send payment alert to ${intermediary.email}:`, e.message);
+      }
+    }
+
+    console.log(`Sent ${sentCount} payment alerts.`);
+  } catch (error) {
+    console.error("Payment alert scheduler error:", error);
+  }
+};
+
+/**
  * Run the daily renewal check
  */
 const runDailyRenewalCheck = async () => {
@@ -360,7 +417,12 @@ const startScheduler = () => {
     await runDailyRenewalCheck();
   });
 
-  console.log("Renewal scheduler started successfully");
+  // Schedule Payment Alerts at 9 AM and 5 PM (8 hour gap)
+  cron.schedule("0 9,17 * * *", async () => {
+    await runPaymentAlertCheck();
+  });
+
+  console.log("Renewal and Payment schedulers started successfully");
 };
 
 /**
@@ -422,6 +484,7 @@ module.exports = {
   startScheduler,
   stopScheduler,
   runDailyRenewalCheck,
+  runPaymentAlertCheck,
   getSchedulerStatus,
   updateSchedulerConfig,
   getPoliciesToRemind,

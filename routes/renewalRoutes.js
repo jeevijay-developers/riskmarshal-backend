@@ -13,6 +13,8 @@ const {
   getSchedulerStatusController,
   triggerRenewalCheckController,
   configureSchedulerController,
+  getRenewalConfigController,
+  updateRenewalConfigController,
 } = require("../controllers/renewalController");
 const { authenticate, authorize } = require("../middleware/auth");
 
@@ -23,6 +25,10 @@ router.use(authenticate);
 router.get("/scheduler/status", getSchedulerStatusController);
 router.post("/scheduler/trigger", triggerRenewalCheckController);
 router.post("/scheduler/configure", configureSchedulerController);
+
+// Renewal Config
+router.get("/config", getRenewalConfigController);
+router.put("/config", updateRenewalConfigController);
 
 // Statistics route (must be before /:id routes)
 router.get("/stats", getRenewalStatsController);

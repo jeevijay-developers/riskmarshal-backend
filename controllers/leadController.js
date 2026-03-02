@@ -145,3 +145,63 @@ exports.deleteLead = async (req, res) => {
     });
   }
 };
+
+// Convert lead to client
+exports.convertLead = async (req, res) => {
+  try {
+    const Lead = require("../models/Lead");
+    const Client = require("../models/Client");
+    
+    const lead = await Lead.findOne({
+      _id: req.params.id,
+      createdBy: req.user._id,
+    });
+
+    if (!lead) {
+      return res.status(404).json({
+        success: false,
+        message: "Lead not found",
+      });
+    }
+
+    if (lead.status === "converted") {
+      return res.status(400).json({
+        success: false,
+        message: "Lead is already converted",
+      });
+    }
+
+    const client = new Client({
+      name: lead.name,
+      email: lead.email,
+      contactNumber: lead.phone,
+      convertedFromLead: lead._id,
+      createdBy: req.user._id,
+    });
+    
+    await client.save();
+
+    lead.status = "converted";
+    lead.convertedClientId = client._id;
+    lead.activityLog = lead.activityLog || [];
+    lead.activityLog.push({
+      action: "Converted to Client",
+      performedBy: req.user._id,
+      notes: "Lead successfully converted to an active client.",
+    });
+
+    await lead.save();
+
+    res.json({
+      success: true,
+      message: "Lead converted to client successfully",
+      data: { lead, client },
+    });
+  } catch (error) {
+    console.error("Error converting lead:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to convert lead",
+    });
+  }
+};

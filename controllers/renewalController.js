@@ -293,6 +293,49 @@ const configureSchedulerController = async (req, res) => {
   }
 };
 
+const RenewalConfig = require("../models/RenewalConfig");
+// @desc    Get renewal configuration
+// @route   GET /api/renewals/config
+// @access  Private (Admin)
+const getRenewalConfigController = async (req, res) => {
+  try {
+    let config = await RenewalConfig.findOne();
+    if (!config) {
+      config = await RenewalConfig.create({});
+    }
+    res.status(200).json({ success: true, data: config });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Update renewal configuration
+// @route   PUT /api/renewals/config
+// @access  Private (Admin)
+const updateRenewalConfigController = async (req, res) => {
+  try {
+    const { reminderWindows, clientEmailTemplate, intermediaryEmailTemplate, cronSchedule, isActive } = req.body;
+    let config = await RenewalConfig.findOne();
+    if (!config) {
+      config = new RenewalConfig({});
+    }
+    if (reminderWindows) config.reminderWindows = reminderWindows;
+    if (clientEmailTemplate) config.clientEmailTemplate = clientEmailTemplate;
+    if (intermediaryEmailTemplate) config.intermediaryEmailTemplate = intermediaryEmailTemplate;
+    if (cronSchedule) config.cronSchedule = cronSchedule;
+    if (isActive !== undefined) config.isActive = isActive;
+    
+    config.updatedBy = req.user._id;
+    await config.save();
+    
+    updateSchedulerConfig({ enabled: config.isActive });
+
+    res.status(200).json({ success: true, message: "Configuration updated", data: config });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   getAllRenewalsController,
   getRenewalByIdController,
@@ -306,4 +349,6 @@ module.exports = {
   getSchedulerStatusController,
   triggerRenewalCheckController,
   configureSchedulerController,
+  getRenewalConfigController,
+  updateRenewalConfigController,
 };

@@ -179,6 +179,38 @@ const InsurancePolicySchema = new mongoose.Schema(
         },
       ],
     },
+    renewalStatus: {
+      type: String,
+      enum: ["upcoming", "reminder_sent", "renewed", "lapsed"],
+      default: "upcoming"
+    },
+    renewedFromPolicyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "InsurancePolicy",
+      default: null
+    },
+    renewedToPolicyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "InsurancePolicy",
+      default: null
+    },
+    renewalReminderSchedule: [
+      {
+        daysBeforeExpiry: { type: Number },
+        scheduledDate: { type: Date },
+        sent: { type: Boolean, default: false },
+        sentAt: { type: Date, default: null }
+      }
+    ],
+    reminderHistory: [
+      {
+        reminderType: { type: String, enum: ["60d", "30d", "15d", "7d", "manual"] },
+        sentToClient: { type: Boolean, default: false },
+        sentToIntermediary: { type: Boolean, default: false },
+        sentAt: { type: Date },
+        channel: { type: String, enum: ["email", "in_app"] }
+      }
+    ],
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

@@ -19,14 +19,13 @@ const LeadSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: [
-        "New",
-        "Contacted",
-        "Qualified",
-        "Proposal Sent",
-        "Closed Won",
-        "Closed Lost",
+        "new",
+        "contacted",
+        "in_discussion",
+        "converted",
+        "lost",
       ],
-      default: "New",
+      default: "new",
     },
     source: {
       type: String,
@@ -35,6 +34,24 @@ const LeadSchema = new mongoose.Schema(
     notes: {
       type: String,
     },
+    assignedIntermediaryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null
+    },
+    convertedClientId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Client",
+      default: null
+    },
+    activityLog: [
+      {
+        action: { type: String },
+        performedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        timestamp: { type: Date, default: Date.now },
+        notes: { type: String }
+      }
+    ],
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
