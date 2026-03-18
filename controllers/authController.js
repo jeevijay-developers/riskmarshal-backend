@@ -2,6 +2,7 @@ const bcrypt = require('bcrypt');
 const User = require('../models/User');
 const Subagent = require('../models/Subagent');
 const { generateToken } = require('../utils/jwt');
+const { sendEmail } = require('../utils/emailService');
 
 // @desc    Register user
 // @route   POST /api/auth/register
@@ -394,6 +395,95 @@ const getOrganization = async (req, res) => {
   }
 };
 
+// @desc    Send OTP for password reset
+// @route   POST /api/auth/forgot-password
+// @access  Public
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email is required' });
+    }
+
+    const user = await User.findOne({ email, isActive: true });
+    // Always return success to avoid user enumeration
+    if (!user) {
+      return res.status(200).json({ success: true, message: 'If that email exists, an OTP has been sent' });
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+    await User.findByIdAndUpdate(user._id, {
+      resetPasswordOtp: otp,
+      resetPasswordExpiry: expiry
+    });
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #ab792e;">Password Reset OTP</h2>
+        <p>Hello ${user.firstName || user.username},</p>
+        <p>Your OTP for password reset is:</p>
+        <div style="background: #f4f4f7; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0;">
+          <span style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #ab792e;">${otp}</span>
+        </div>
+        <p>This OTP is valid for <strong>15 minutes</strong>. Do not share it with anyone.</p>
+        <p>If you did not request this, please ignore this email.</p>
+        <p>— Risk Marshal Team</p>
+      </div>
+    `;
+
+    await sendEmail(user.email, 'Password Reset OTP — Risk Marshal', `Your OTP is: ${otp}`, html);
+
+    res.status(200).json({ success: true, message: 'If that email exists, an OTP has been sent' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Reset password using OTP
+// @route   POST /api/auth/reset-password
+// @access  Public
+const resetPassword = async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ success: false, message: 'email, otp, and newPassword are required' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: 'New password must be at least 6 characters' });
+    }
+
+    const user = await User.findOne({ email, isActive: true })
+      .select('+resetPasswordOtp +resetPasswordExpiry +password');
+
+    if (!user || !user.resetPasswordOtp) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired OTP' });
+    }
+
+    if (user.resetPasswordExpiry < new Date()) {
+      return res.status(400).json({ success: false, message: 'OTP has expired. Please request a new one.' });
+    }
+
+    if (user.resetPasswordOtp !== otp) {
+      return res.status(400).json({ success: false, message: 'Invalid OTP' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+    user.resetPasswordOtp = null;
+    user.resetPasswordExpiry = null;
+    await user.save();
+
+    res.status(200).json({ success: true, message: 'Password reset successfully. You can now log in.' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -403,5 +493,7 @@ module.exports = {
   changePassword,
   updateNotifications,
   updateOrganization,
-  getOrganization
+  getOrganization,
+  forgotPassword,
+  resetPassword
 };

@@ -31,6 +31,10 @@ const InsurerSchema = new mongoose.Schema({
     ifscCode: { type: String },
     paymentTerms: { type: String } // e.g., "Monthly", "Quarterly"
   },
+  associatedIntermediaries: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
   isActive: {
     type: Boolean,
     default: true

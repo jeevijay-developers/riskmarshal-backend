@@ -5,6 +5,7 @@ const {
   getPolicyById,
   deletePolicy,
 } = require("../services/policyService");
+const InsurancePolicy = require("../models/InsurancePolicy");
 const { calculateAndUpdatePolicy } = require("../services/calculationService");
 const { generateQuotation } = require("../services/quotationService");
 const { sendQuotation } = require("../services/communicationService");
@@ -428,6 +429,119 @@ const sendPolicyWhatsAppController = async (req, res) => {
   }
 };
 
+// @desc    Get active policies (insuranceEndDate > today), with daysUntilExpiry
+// @route   GET /api/policies/active
+// @access  Authenticated (scoped by role)
+const getActivePolicies = async (req, res) => {
+  try {
+    const isAdmin = req.user.role === 'admin';
+    const today = new Date();
+
+    const filter = {
+      status: 'active',
+      'policyDetails.insuranceEndDate': { $gt: today },
+      ...(isAdmin ? {} : { createdBy: req.user._id })
+    };
+
+    // Optional filters
+    if (req.query.insurer) filter.insurer = req.query.insurer;
+    if (req.query.renewalStatus) filter.renewalStatus = req.query.renewalStatus;
+
+    const { page = 1, limit = 20, search } = req.query;
+
+    let query = InsurancePolicy.find(filter)
+      .populate('client', 'name email contactNumber')
+      .populate('insurer', 'companyName')
+      .populate('policyType', 'name')
+      .populate('createdBy', 'username firstName lastName')
+      .sort({ 'policyDetails.insuranceEndDate': 1 });
+
+    const policies = await query
+      .skip((page - 1) * limit)
+      .limit(Number(limit))
+      .lean();
+
+    const total = await InsurancePolicy.countDocuments(filter);
+
+    // Add daysUntilExpiry and urgency color
+    const result = policies.map(p => {
+      const endDate = new Date(p.policyDetails?.insuranceEndDate);
+      const diffMs = endDate - today;
+      const daysUntilExpiry = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      let urgency = 'green';
+      if (daysUntilExpiry <= 7) urgency = 'red';
+      else if (daysUntilExpiry <= 15) urgency = 'orange';
+      else if (daysUntilExpiry <= 30) urgency = 'yellow';
+      return { ...p, daysUntilExpiry, urgency };
+    });
+
+    // Apply search filter after population if needed
+    let filtered = result;
+    if (search) {
+      const q = search.toLowerCase();
+      filtered = result.filter(p =>
+        p.policyDetails?.policyNumber?.toLowerCase().includes(q) ||
+        p.client?.name?.toLowerCase().includes(q) ||
+        p.insurer?.companyName?.toLowerCase().includes(q)
+      );
+    }
+
+    res.status(200).json({ success: true, count: filtered.length, total, data: filtered });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Get full renewal chain for a policy
+// @route   GET /api/policies/:id/renewal-history
+// @access  Authenticated (scoped)
+const getRenewalHistory = async (req, res) => {
+  try {
+    const isAdmin = req.user.role === 'admin';
+
+    const policy = await InsurancePolicy.findOne({
+      _id: req.params.id,
+      ...(isAdmin ? {} : { createdBy: req.user._id })
+    }).lean();
+
+    if (!policy) {
+      return res.status(404).json({ success: false, message: 'Policy not found' });
+    }
+
+    const chain = [policy];
+
+    // Walk backwards through renewedFromPolicyId chain
+    let currentId = policy.renewedFromPolicyId;
+    while (currentId) {
+      const prev = await InsurancePolicy.findById(currentId)
+        .populate('client', 'name')
+        .populate('insurer', 'companyName')
+        .populate('policyType', 'name')
+        .lean();
+      if (!prev) break;
+      chain.unshift(prev);
+      currentId = prev.renewedFromPolicyId;
+    }
+
+    // Walk forward through renewedToPolicyId chain
+    let nextId = policy.renewedToPolicyId;
+    while (nextId) {
+      const next = await InsurancePolicy.findById(nextId)
+        .populate('client', 'name')
+        .populate('insurer', 'companyName')
+        .populate('policyType', 'name')
+        .lean();
+      if (!next) break;
+      chain.push(next);
+      nextId = next.renewedToPolicyId;
+    }
+
+    res.status(200).json({ success: true, count: chain.length, data: chain });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   getPolicyTypes,
   getInsurers,
@@ -444,4 +558,6 @@ module.exports = {
   generatePolicyController,
   approvePaymentController,
   sendPolicyWhatsAppController,
+  getActivePolicies,
+  getRenewalHistory,
 };

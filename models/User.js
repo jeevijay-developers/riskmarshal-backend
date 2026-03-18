@@ -56,6 +56,17 @@ const UserSchema = new mongoose.Schema({
     claimsAlerts: { type: Boolean, default: false },
     newClients: { type: Boolean, default: true }
   },
+  // Password reset fields
+  resetPasswordOtp: {
+    type: String,
+    default: null,
+    select: false
+  },
+  resetPasswordExpiry: {
+    type: Date,
+    default: null,
+    select: false
+  },
   // Organization settings (for admin users)
   organization: {
     companyName: { type: String, default: '' },

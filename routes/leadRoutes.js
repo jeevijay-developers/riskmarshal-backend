@@ -8,7 +8,9 @@ const {
   updateLead,
   deleteLead,
   convertLead,
+  assignLead,
 } = require("../controllers/leadController");
+const { authorize } = require('../middleware/auth');
 
 // All routes are protected
 router.use(authenticate);
@@ -30,5 +32,8 @@ router.delete("/:id", deleteLead);
 
 // Convert lead
 router.post("/:id/convert", convertLead);
+
+// Assign lead to intermediary (admin only)
+router.put("/:id/assign", authorize('admin'), assignLead);
 
 module.exports = router;

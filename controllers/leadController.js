@@ -1,22 +1,25 @@
 const Lead = require("../models/Lead");
 
-// Get all leads
+// Get all leads (admin sees all; agent sees assigned + own)
 exports.getLeads = async (req, res) => {
   try {
-    const leads = await Lead.find({ createdBy: req.user._id }).sort({
-      createdAt: -1,
-    });
+    const isAdmin = req.user.role === 'admin';
+    const filter = isAdmin
+      ? {}
+      : { $or: [{ createdBy: req.user._id }, { assignedIntermediaryId: req.user._id }] };
 
-    res.json({
-      success: true,
-      data: leads,
-    });
+    // Optional filters
+    if (req.query.status) filter.status = req.query.status;
+    if (req.query.assignedTo && isAdmin) filter.assignedIntermediaryId = req.query.assignedTo;
+
+    const leads = await Lead.find(filter)
+      .populate('assignedIntermediaryId', 'username firstName lastName email')
+      .sort({ createdAt: -1 });
+
+    res.json({ success: true, data: leads });
   } catch (error) {
     console.error("Error fetching leads:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch leads",
-    });
+    res.status(500).json({ success: false, message: "Failed to fetch leads" });
   }
 };
 
@@ -143,6 +146,37 @@ exports.deleteLead = async (req, res) => {
       success: false,
       message: "Failed to delete lead",
     });
+  }
+};
+
+// Assign lead to an intermediary (admin only)
+exports.assignLead = async (req, res) => {
+  try {
+    const { intermediaryId } = req.body;
+    if (!intermediaryId) {
+      return res.status(400).json({ success: false, message: 'intermediaryId is required' });
+    }
+
+    const lead = await Lead.findById(req.params.id);
+    if (!lead) {
+      return res.status(404).json({ success: false, message: 'Lead not found' });
+    }
+
+    lead.assignedIntermediaryId = intermediaryId;
+    lead.activityLog = lead.activityLog || [];
+    lead.activityLog.push({
+      action: 'Assigned to Intermediary',
+      performedBy: req.user._id,
+      notes: `Lead assigned to agent ${intermediaryId}`
+    });
+    await lead.save();
+
+    await lead.populate('assignedIntermediaryId', 'username firstName lastName email');
+
+    res.json({ success: true, message: 'Lead assigned successfully', data: lead });
+  } catch (error) {
+    console.error("Error assigning lead:", error);
+    res.status(500).json({ success: false, message: error.message || "Failed to assign lead" });
   }
 };
 

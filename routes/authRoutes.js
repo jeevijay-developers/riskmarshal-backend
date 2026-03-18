@@ -9,12 +9,16 @@ const {
   changePassword,
   updateNotifications,
   updateOrganization,
-  getOrganization
+  getOrganization,
+  forgotPassword,
+  resetPassword
 } = require('../controllers/authController');
 const { authenticate } = require('../middleware/auth');
 
 router.post('/register', register);
 router.post('/login', login);
+router.post('/forgot-password', forgotPassword);
+router.post('/reset-password', resetPassword);
 router.get('/me', authenticate, getMe);
 router.post('/logout', authenticate, logout);
 

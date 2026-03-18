@@ -7,7 +7,7 @@ const path = require("path");
 const fs = require("fs");
 
 // Import routes
-const authRoutes = require("./routes/authRoutes" );
+const authRoutes = require("./routes/authRoutes");
 const policyRoutes = require("./routes/policyRoutes");
 const subagentRoutes = require("./routes/subagentRoutes");
 const insurerRoutes = require("./routes/insurerRoutes");
@@ -17,6 +17,10 @@ const clientRoutes = require("./routes/clientRoutes");
 const reportRoutes = require("./routes/reportRoutes");
 const renewalRoutes = require("./routes/renewalRoutes");
 const leadRoutes = require("./routes/leadRoutes");
+const userRoutes = require("./routes/userRoutes");
+const dashboardRoutes = require("./routes/dashboardRoutes");
+const quotationRoutes = require("./routes/quotationRoutes");
+const commissionRoutes = require("./routes/commissionRoutes");
 
 // Import scheduler
 const { startScheduler } = require("./services/schedulerService");
@@ -59,6 +63,10 @@ app.use("/api/clients", clientRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/renewals", renewalRoutes);
 app.use("/api/leads", leadRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/quotations", quotationRoutes);
+app.use("/api/commissions", commissionRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {

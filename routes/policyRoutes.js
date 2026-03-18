@@ -16,6 +16,8 @@ const {
   generatePolicyController,
   approvePaymentController,
   sendPolicyWhatsAppController,
+  getActivePolicies,
+  getRenewalHistory,
 } = require("../controllers/policyController");
 const {
   uploadPDF,
@@ -28,6 +30,9 @@ const upload = require("../middleware/upload");
 
 // All routes require authentication
 router.use(authenticate);
+
+// Active policies and renewal history (before /:id to avoid param conflict)
+router.get("/active", getActivePolicies);
 
 // Policy type and insurer routes
 router.get("/policy-types", getPolicyTypes);
@@ -46,6 +51,7 @@ router.get("/", getAllPolicies);
 router.get("/:id", getSinglePolicy);
 router.put("/:id", updatePolicyController);
 router.delete("/:id", deletePolicyController);
+router.get("/:id/renewal-history", getRenewalHistory);
 router.post("/:id/approve-payment", approvePaymentController);
 
 // Calculation routes
