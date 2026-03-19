@@ -28,7 +28,7 @@ const uploadPDF = async (req, res) => {
     });
 
     // Save PDF file
-    const pdfUrl = saveFile(req.file, "uploads");
+    const pdfUrl = await saveFile(req.file, "uploads");
 
     // Link policy to client
     if (policy.client) {

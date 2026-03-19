@@ -1,50 +1,45 @@
-const fs = require('fs');
-const path = require('path');
-const constants = require('../config/constants');
+const ImageKit = require('@imagekit/nodejs');
+const { toFile } = require('@imagekit/nodejs');
 
-// Ensure storage directory exists
-const ensureStorageDir = (dirPath) => {
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
-  }
-};
+const imagekit = new ImageKit({
+  privateKey: process.env.IMAGEKIT_PRIVATE_KEY,
+});
 
-const saveFile = (file, subfolder = '') => {
+const saveFile = async (file, subfolder = '') => {
   try {
-    const storagePath = path.join(constants.PDF_STORAGE_PATH, subfolder);
-    ensureStorageDir(storagePath);
-
-    const filename = `${Date.now()}-${file.originalname}`;
-    const filePath = path.join(storagePath, filename);
-
-    fs.writeFileSync(filePath, file.buffer);
-    return `/storage/pdfs/${subfolder}${subfolder ? '/' : ''}${filename}`;
+    const folder = subfolder ? `/riskmarshal/${subfolder}` : '/riskmarshal';
+    const fileName = `${Date.now()}-${file.originalname}`;
+    const uploadedFile = await toFile(file.buffer, fileName);
+    const response = await imagekit.files.upload({
+      file: uploadedFile,
+      fileName,
+      folder,
+    });
+    return response.url;
   } catch (error) {
     throw new Error(`File save failed: ${error.message}`);
   }
 };
 
-const saveBuffer = (buffer, filename, subfolder = '') => {
+const saveBuffer = async (buffer, filename, subfolder = '') => {
   try {
-    const storagePath = path.join(constants.PDF_STORAGE_PATH, subfolder);
-    ensureStorageDir(storagePath);
-
-    const filePath = path.join(storagePath, filename);
-    fs.writeFileSync(filePath, buffer);
-    return `/storage/pdfs/${subfolder}${subfolder ? '/' : ''}${filename}`;
+    const folder = subfolder ? `/riskmarshal/${subfolder}` : '/riskmarshal';
+    const uploadedFile = await toFile(buffer, filename);
+    const response = await imagekit.files.upload({
+      file: uploadedFile,
+      fileName: filename,
+      folder,
+    });
+    return response.url;
   } catch (error) {
     throw new Error(`Buffer save failed: ${error.message}`);
   }
 };
 
-const deleteFile = (filePath) => {
+const deleteFile = async (fileId) => {
   try {
-    const fullPath = path.join(__dirname, '..', filePath);
-    if (fs.existsSync(fullPath)) {
-      fs.unlinkSync(fullPath);
-      return true;
-    }
-    return false;
+    await imagekit.files.delete(fileId);
+    return true;
   } catch (error) {
     throw new Error(`File deletion failed: ${error.message}`);
   }
@@ -53,6 +48,5 @@ const deleteFile = (filePath) => {
 module.exports = {
   saveFile,
   saveBuffer,
-  deleteFile
+  deleteFile,
 };
-

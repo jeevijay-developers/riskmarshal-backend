@@ -32,7 +32,7 @@ const generateQuotationPDF = async (policy) => {
           const filename = `quotation-${
             policy.quotationId || policy._id
           }-${Date.now()}.pdf`;
-          const pdfUrl = saveBuffer(buffer, filename, "quotations");
+          const pdfUrl = await saveBuffer(buffer, filename, "quotations");
           resolve(pdfUrl);
         } catch (error) {
           reject(error);
@@ -256,7 +256,7 @@ const generatePolicyPDF = async (policy) => {
           const filename = `policy-${
             policy.policyDetails.policyNumber || policy._id
           }-${Date.now()}.pdf`;
-          const pdfUrl = saveBuffer(buffer, filename, "policies");
+          const pdfUrl = await saveBuffer(buffer, filename, "policies");
           resolve(pdfUrl);
         } catch (error) {
           reject(error);
